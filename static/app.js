@@ -1400,24 +1400,19 @@ async function runPreview() {
   } finally { busy(false); }
 }
 
-function outputMode() {
-  const r = document.querySelector('input[name="out-mode"]:checked');
-  return r ? r.value : 'new';
-}
-
 async function runGenerate() {
-  const mode = outputMode();
-  const payload = { config: S.config, output_mode: mode };
-  if (mode === 'append') {
+  const alsoAppend = $('#also-append').checked;
+  const payload = { config: S.config, filename: $('#out-name').value };
+  if (alsoAppend) {
     const file = appendTarget();
     if (!file) { toast('Choose or enter the file to append to', 'err'); return; }
+    payload.also_append = true;
     payload.append_to = file;
     payload.append_sheet = $('#append-sheet').value || null;
     payload.skip_existing_dates = $('#skip-existing-dates').checked;
-  } else {
-    payload.filename = $('#out-name').value;
+    payload.append_template_columns = $('#append-template-cols').checked;
   }
-  busy(true, mode === 'append' ? 'Appending to the workbook...' : 'Generating the workbook...');
+  busy(true, alsoAppend ? 'Generating and appending...' : 'Generating the workbook...');
   $('#run-status').innerHTML = '';
   try {
     const d = await api('/api/generate', {
@@ -1425,27 +1420,41 @@ async function runGenerate() {
       body: JSON.stringify(payload),
     });
     showReport(d.report);
-    if (d.mode === 'append') {
+
+    // The new file is always produced.
+    let html = `<div class="msg ok"><strong>${esc(d.filename)}</strong> is ready
+      (${d.size_kb} KB). If the download did not start,
+      <a href="/api/download/${d.token}">click here</a>.</div>`;
+
+    // The append, when asked for, is reported separately - it can fail on its
+    // own without affecting the file that was just generated.
+    if (d.append_error) {
+      html += `<div class="msg err">The output file was created, but appending
+        failed: ${esc(d.append_error)}</div>`;
+    } else if (d.appended_to) {
       const skipNote = d.skipped
         ? `<br><span class="muted">Skipped ${num(d.skipped)} rows for
-           ${d.skipped_dates.length} date(s) already in the file:
+           ${d.skipped_dates.length} date(s) already there:
            ${d.skipped_dates.map(esc).join(', ')}.</span>`
         : '';
-      const body = d.appended
-        ? `<strong>${num(d.appended)}</strong> rows appended to
-           <strong>${esc(d.filename)}</strong> (sheet “${esc(d.sheet)}”, now ${d.size_kb} KB).
-           <a href="/api/download/${d.token}">Download the updated file</a>.${skipNote}`
-        : `Nothing appended — every date was already in <strong>${esc(d.filename)}</strong>,
-           so it was left unchanged.${skipNote}`;
-      $('#run-status').innerHTML = `<div class="msg ${d.appended ? 'ok' : 'warn'}">${body}</div>`;
-      toast(d.appended ? 'Rows appended' : 'Nothing to add', d.appended ? 'ok' : 'warn');
-    } else {
-      $('#run-status').innerHTML =
-        `<div class="msg ok"><strong>${esc(d.filename)}</strong> is ready (${d.size_kb} KB).
-         If the download did not start, <a href="/api/download/${d.token}">click here</a>.</div>`;
-      window.location = `/api/download/${d.token}`;
-      toast('Output generated', 'ok');
+      const dropped = (d.append_columns_dropped || []).length
+        ? `<br><span class="muted">Kept the template's ${num(d.append_columns_kept)}
+           columns; left out ${esc(d.append_columns_dropped.join(', '))}.</span>`
+        : '';
+      html += d.appended
+        ? `<div class="msg ok"><strong>${num(d.appended)}</strong> rows also appended to
+           <strong>${esc(d.appended_to)}</strong> (sheet “${esc(d.append_sheet)}”,
+           now ${d.append_size_kb} KB).
+           <a href="/api/download/${d.append_token}">Download it</a>.${skipNote}${dropped}</div>`
+        : `<div class="msg warn">Nothing appended to
+           <strong>${esc(d.appended_to)}</strong> — every date was already there,
+           so it was left unchanged.${skipNote}</div>`;
     }
+    $('#run-status').innerHTML = html;
+    window.location = `/api/download/${d.token}`;
+    toast(d.append_error ? 'Generated, but append failed'
+          : d.appended_to ? 'Generated and appended' : 'Output generated',
+          d.append_error ? 'err' : 'ok');
   } catch (e) {
     $('#run-status').innerHTML = `<div class="msg err">${esc(e.message)}</div>`;
     toast(e.message, 'err');
@@ -1460,14 +1469,13 @@ function appendTarget() {
   return sel;
 }
 
-// Step 5 output-destination toggle: new file vs. append to an existing one.
+// Step 5: the new output file is always written; appending is an optional extra.
 function setupOutputMode() {
-  $$('input[name="out-mode"]').forEach(r => r.onchange = () => {
-    const append = outputMode() === 'append';
-    $('#append-opts').hidden = !append;
-    $('#new-file-opts').hidden = append;
-    if (append) populateAppendFiles();
-  });
+  $('#also-append').onchange = () => {
+    const on = $('#also-append').checked;
+    $('#append-opts').hidden = !on;
+    if (on) populateAppendFiles();
+  };
   $('#append-file').onchange = () => {
     const custom = $('#append-file').value === '__path__';
     $('#append-path-row').hidden = !custom;

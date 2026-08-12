@@ -1004,39 +1004,8 @@ def generate():
 
     st = _state()
 
-    # Append mode: add the output rows to the bottom of an existing workbook the
-    # user names here, instead of writing a fresh file. Everything else in that
-    # workbook is preserved.
-    if (data.get("output_mode") or "new") == "append":
-        target = data.get("append_to")
-        if not target:
-            return _err("Choose the existing file to append to.")
-        tgt_path = _resolve_target(target)
-        if not os.path.isfile(tgt_path):
-            return _err(f"Cannot find '{target}'.")
-        skip_dates = data.get("skip_existing_dates", True)
-        try:
-            info = excel_io.append_to_excel(
-                res["output"], tgt_path, data.get("append_sheet") or None,
-                skip_existing_dates=skip_dates)
-        except (ValueError, PermissionError) as e:
-            # PermissionError is the usual one: the file is open in Excel.
-            msg = str(e)
-            if isinstance(e, PermissionError):
-                msg = (f"Could not write '{os.path.basename(tgt_path)}'. "
-                       "Close it in Excel and try again.")
-            return _err(msg)
-        token = secrets.token_hex(8)
-        st["outputs"][token] = tgt_path
-        return jsonify({"ok": True, "token": token,
-                        "filename": os.path.basename(tgt_path),
-                        "appended": info["appended"], "sheet": info["sheet"],
-                        "skipped": info["skipped"],
-                        "skipped_dates": info["skipped_dates"],
-                        "date_column": info["date_column"],
-                        "report": res["report"], "mode": "append",
-                        "size_kb": round(os.path.getsize(tgt_path) / 1024, 1)})
-
+    # A new output file is always written. Appending to an existing workbook is
+    # an optional extra on top of it, never a replacement.
     stamp = _dt.datetime.now().strftime("%Y%m%d_%H%M%S")
     fname = _safe_name(data.get("filename") or f"Output_Data_{stamp}.xlsx")
     if not fname.lower().endswith(".xlsx"):
@@ -1058,9 +1027,55 @@ def generate():
 
     token = secrets.token_hex(8)
     st["outputs"][token] = path
-    return jsonify({"ok": True, "token": token, "filename": fname,
-                    "report": res["report"], "mode": "new",
-                    "size_kb": round(os.path.getsize(path) / 1024, 1)})
+    out = {"ok": True, "token": token, "filename": fname,
+           "report": res["report"], "mode": "new",
+           "size_kb": round(os.path.getsize(path) / 1024, 1)}
+
+    # --- optional: also append the rows to an existing workbook --------------
+    if data.get("also_append"):
+        target = data.get("append_to")
+        if not target:
+            out["append_error"] = "No file was chosen to append to."
+            return jsonify(out)
+        tgt_path = _resolve_target(target)
+        if not os.path.isfile(tgt_path):
+            out["append_error"] = f"Cannot find '{target}'."
+            return jsonify(out)
+
+        rows = res["output"]
+        # Keep the appended rows to the template's own columns, so a long-lived
+        # database file does not sprout new ones (SOURCE, FILL BASIS, ...).
+        if data.get("append_template_columns", True):
+            tpl = st["frames"].get("historical")
+            if tpl is not None:
+                keep = [c for c in rows.columns if c in set(tpl.columns)]
+                if keep:
+                    rows = rows[keep]
+                    out["append_columns_kept"] = len(keep)
+                    out["append_columns_dropped"] = [
+                        str(c) for c in res["output"].columns if c not in set(keep)]
+
+        try:
+            info = excel_io.append_to_excel(
+                rows, tgt_path, data.get("append_sheet") or None,
+                skip_existing_dates=data.get("skip_existing_dates", True))
+        except (ValueError, PermissionError) as e:
+            # PermissionError is the usual one: the file is open in Excel.
+            out["append_error"] = (
+                f"Could not write '{os.path.basename(tgt_path)}'. "
+                "Close it in Excel and try again."
+                if isinstance(e, PermissionError) else str(e))
+            return jsonify(out)
+
+        atoken = secrets.token_hex(8)
+        st["outputs"][atoken] = tgt_path
+        out.update({
+            "appended_to": os.path.basename(tgt_path), "append_token": atoken,
+            "appended": info["appended"], "append_sheet": info["sheet"],
+            "skipped": info["skipped"], "skipped_dates": info["skipped_dates"],
+            "append_size_kb": round(os.path.getsize(tgt_path) / 1024, 1),
+        })
+    return jsonify(out)
 
 
 def _summary_frame(report: dict, st: dict) -> pd.DataFrame:
