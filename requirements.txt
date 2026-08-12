@@ -1,0 +1,17 @@
+# Data Transformer - pinned to the versions this app was built and tested on.
+# Python 3.11+ recommended.
+Flask==3.1.3
+Werkzeug==3.1.8
+pandas==3.0.3
+numpy==2.4.6
+openpyxl==3.1.5
+pyxlsb==1.0.10
+python-calamine==0.8.2
+
+# Production WSGI server, used only when hosting online (e.g. Render). Not
+# needed to run locally with `python app.py`.
+gunicorn==23.0.0
+
+# Optional: only needed for the Step 3 "Prompt (AI)" feature. The API key is
+# entered in the app at runtime and held in memory - never stored on disk.
+anthropic==0.107.1

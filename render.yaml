@@ -1,0 +1,21 @@
+# One-click deploy config for Render (https://render.com).
+# In Render: New + -> Blueprint -> connect this repo -> Apply.
+services:
+  - type: web
+    name: mt-data-transformer
+    runtime: python
+    plan: free
+    buildCommand: "pip install -r requirements.txt"
+    # One worker on purpose: the app keeps each visitor's uploaded files in an
+    # in-memory store, so a second worker would not see them. Threads give
+    # concurrency within the one worker.
+    startCommand: "gunicorn app:app --bind 0.0.0.0:$PORT --workers 1 --threads 8 --timeout 120"
+    envVars:
+      # Serve the bundled fictional demo data as the quick-load files.
+      - key: DT_DATA_DIR
+        value: ./sample_data
+      # Stable session signing key across restarts.
+      - key: DT_SECRET_KEY
+        generateValue: true
+      - key: PYTHON_VERSION
+        value: "3.11.9"

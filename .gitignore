@@ -1,0 +1,59 @@
+# ---------------------------------------------------------------------------
+# Data files - NEVER commit business data. All spreadsheets are ignored so a
+# stray New/Master/Historical file dropped in this folder cannot leak.
+# ---------------------------------------------------------------------------
+*.xlsx
+*.xlsb
+*.xls
+*.xlsm
+*.xltx
+*.csv
+*.tsv
+
+# ...except the bundled fictional demo dataset, which is meant to be shared.
+!sample_data/
+!sample_data/*.xlsx
+
+# Saved mapping profiles hold your own column mappings / standardisations.
+# Commit a sanitised example by hand if you want one; keep real ones out.
+mapping_profile*.json
+
+# Local pipeline database / outputs
+sales_db*.xlsx
+*_output*.xlsx
+Output_Data*.xlsx
+
+# ---------------------------------------------------------------------------
+# Secrets & local config
+# ---------------------------------------------------------------------------
+.env
+.env.*
+*.key
+secrets.json
+
+# ---------------------------------------------------------------------------
+# Python
+# ---------------------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# ---------------------------------------------------------------------------
+# Logs & runtime
+# ---------------------------------------------------------------------------
+logs/
+*.log
+
+# ---------------------------------------------------------------------------
+# Editor / OS
+# ---------------------------------------------------------------------------
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

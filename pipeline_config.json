@@ -1,0 +1,52 @@
+{
+  "_help": {
+    "what": "Settings for the headless daily agent (run_pipeline.py). Edit values below; keys starting with _ are ignored.",
+    "data_dir": "Folder holding the 3 input files. null = the folder above /webapp.",
+    "files": "Exact input filenames per role. Remove a name to let the agent guess it by keyword.",
+    "sheets": "Optional per-role sheet + header override, e.g. master: {sheet:'All SKU', header_row:1}. Leave empty to auto-detect.",
+    "profile": "The reviewed mapping saved from the web app's 'Save profile' button.",
+    "database": "Where clean rows are loaded. path is a NEW pipeline DB file by default so nothing existing is touched. Point it at your real sales database file once you've confirmed sheet + key_columns.",
+    "qc.blocking": "'all' = every rule quarantines (except warn_only). 'none' = report only. Or a list of {column,type} to make only those block.",
+    "qc.on_unevaluable": "'fail' = stop the run if a blocking rule cannot be checked (safest). 'warn' = continue.",
+    "alert.email": "Optional. Set enabled:true and fill host/user/to/from; put the SMTP password in the DT_SMTP_PASSWORD environment variable (never in this file)."
+  },
+
+  "data_dir": null,
+  "files": {
+    "new": "New Data.xlsx",
+    "master": "Master Data.xlsb",
+    "historical": "Historical Data.xlsx"
+  },
+  "sheets": {},
+  "profile": "mapping_profile.json",
+
+  "output_dir": null,
+  "logs_dir": null,
+
+  "database": {
+    "path": "sales_db_pipeline.xlsx",
+    "sheet": "Output Data",
+    "key_columns": ["DATE", "CITY", "SKU STANDARD NAME"],
+    "backup_dir": null
+  },
+
+  "qc": {
+    "blocking": "all",
+    "on_unevaluable": "fail",
+    "warn_only": [],
+    "extra_validations": []
+  },
+
+  "alert": {
+    "always_write_file": true,
+    "email": {
+      "enabled": false,
+      "to": "you@example.com",
+      "from": "",
+      "host": "",
+      "port": 587,
+      "user": "",
+      "use_env_password": "DT_SMTP_PASSWORD"
+    }
+  }
+}

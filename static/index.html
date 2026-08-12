@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Data Transformer</title>
+<link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <span class="logo">DT</span>
+    <div>
+      <h1>Data Transformer <span class="build" id="build">build {{BUILD}}</span></h1>
+      <p>New Data + Master Data + Historical &rarr; gap-filled output</p>
+    </div>
+  </div>
+  <div class="topbar-actions">
+    <label class="btn ghost sm" for="profile-in">Load profile</label>
+    <input id="profile-in" type="file" accept=".json" hidden>
+    <button class="btn ghost sm" id="profile-out">Save profile</button>
+    <button class="btn ghost sm" id="restart">Start over</button>
+  </div>
+</header>
+
+<nav class="steps" id="steps">
+  <button class="step" data-step="1"><span>1</span>Upload</button>
+  <button class="step" data-step="2"><span>2</span>Standardise</button>
+  <button class="step" data-step="3"><span>3</span>Output columns</button>
+  <button class="step" data-step="4"><span>4</span>Gap-fill rules</button>
+  <button class="step" data-step="5"><span>5</span>Generate</button>
+</nav>
+
+<main>
+
+<!-- ================= STEP 1 ================= -->
+<section class="panel" data-panel="1">
+  <div class="panel-head">
+    <h2>Upload your three files</h2>
+    <p>Excel <code>.xlsx</code>, <code>.xlsb</code>, <code>.xlsm</code> or <code>.csv</code>. The header row is detected automatically &mdash; correct it below if a preview looks wrong.</p>
+  </div>
+  <div class="card" id="localfiles-card" hidden>
+    <div class="card-head">
+      <h3>Files in this folder</h3>
+      <p id="localfiles-path" class="muted"></p>
+    </div>
+    <div id="localfiles"></div>
+    <button class="btn primary sm" id="load-all-local" hidden>Load all three</button>
+  </div>
+
+  <div class="upload-grid" id="uploads"></div>
+  <div class="panel-foot">
+    <div class="hint" id="upload-hint">Upload all three files to continue.</div>
+    <button class="btn primary" id="to-2" disabled>Continue to mapping</button>
+  </div>
+</section>
+
+<!-- ================= STEP 2 ================= -->
+<section class="panel" data-panel="2">
+  <div class="panel-head">
+    <h2>Standardise against Master Data</h2>
+    <p>Master Data is the authority on names. Anything New Data spells differently is converted here, so only Master Data's attributes carry forward.</p>
+  </div>
+
+  <div class="card">
+    <div class="card-head">
+      <h3>Column roles</h3>
+      <p>Dimensions are labels that get standardised. Measures are numbers and are never
+         rewritten. Numeric columns default to measures &mdash; change any that are really labels.</p>
+    </div>
+    <div class="role-tabs" id="role-tabs"></div>
+    <div class="table-tools">
+      <input type="search" id="role-search" placeholder="Filter columns...">
+      <button class="btn ghost xs" id="roles-reset">Reset to detected</button>
+    </div>
+    <div class="table-wrap">
+      <table class="grid-table" id="roles-table">
+        <thead><tr><th>Column</th><th>Detected</th><th>Distinct</th>
+          <th>Examples</th><th>Role</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <div class="stat-strip" id="role-summary"></div>
+  </div>
+
+  <div class="card">
+    <div class="card-head">
+      <h3>Which columns hold the same attribute</h3>
+      <p>Pair each Master Data attribute with the New Data column that holds it. Only paired attributes are checked and standardised.</p>
+    </div>
+    <div id="attrmap"></div>
+    <div class="attr-actions">
+      <button class="btn ghost sm" id="add-attr">+ Add attribute</button>
+      <button class="btn sm" id="recheck">Re-check values</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head">
+      <h3>Value check</h3>
+      <p>Every distinct New Data value is compared with Master Data. Unrecognised ones are listed below for a decision.</p>
+    </div>
+    <div class="stat-strip" id="std-summary"></div>
+    <div id="std-report"></div>
+  </div>
+
+  <div class="panel-foot">
+    <div class="hint" id="std-hint"></div>
+    <button class="btn ghost" data-goto="1">Back</button>
+    <button class="btn primary" data-goto="3">Continue</button>
+  </div>
+</section>
+
+<!-- ================= STEP 3 ================= -->
+<section class="panel" data-panel="3">
+  <div class="panel-head">
+    <h2>Output columns</h2>
+    <p>Decide what one output row represents, where each column's value comes from, and add any calculated columns.</p>
+  </div>
+
+  <div class="card">
+    <div class="card-head">
+      <h3>Output grid</h3>
+      <p>These dimensions define one output row. Every combination in Master Data gets a row for every reporting date &mdash; that is what creates the gaps to fill.</p>
+    </div>
+    <div id="dims"></div>
+    <div class="row-2">
+      <label class="field">
+        <span>Date column in New Data</span>
+        <select id="new-date"></select>
+      </label>
+      <label class="field">
+        <span>Repeated transactions in New Data</span>
+        <select id="dedupe">
+          <option value="first">Keep the first row</option>
+          <option value="last">Keep the last row</option>
+          <option value="sum">Add the numbers together</option>
+          <option value="mean">Average the numbers</option>
+          <option value="max">Keep the highest</option>
+          <option value="min">Keep the lowest</option>
+          <option value="none">Keep every row (may duplicate)</option>
+        </select>
+      </label>
+    </div>
+    <div class="stat-strip" id="grid-stats"></div>
+  </div>
+
+  <div class="card">
+    <div class="card-head">
+      <h3>Output columns</h3>
+      <p><strong>Source</strong> is which file the value comes from.
+         <strong>Operation</strong> is how it is filled.
+         <strong>What</strong> is the column, formula, or value.
+         <strong>Preview</strong> shows the result for the first row of real data.</p>
+    </div>
+    <div class="table-tools">
+      <input type="search" id="map-search" placeholder="Filter columns...">
+      <label class="check"><input type="checkbox" id="only-unmapped"> Only unmapped</label>
+      <button class="btn ghost sm" id="refresh-preview">Refresh preview</button>
+      <button class="btn sm" id="add-output-col">+ Add column</button>
+      <button class="btn ghost sm" id="reset-order">Reset order</button>
+      <span class="muted" id="preview-note"></span>
+    </div>
+    <p class="muted" style="margin-bottom:8px">Drag a row by its handle to reorder,
+      or use the arrows. The order here is the column order in the output file.</p>
+    <div class="table-wrap">
+      <table class="grid-table" id="map-table">
+        <thead><tr>
+          <th style="width:26px"></th>
+          <th>Output column</th><th>Source</th><th>Operation</th>
+          <th>What</th><th>Preview</th><th style="width:78px">Order</th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="panel-foot">
+    <button class="btn ghost" data-goto="2">Back</button>
+    <button class="btn primary" data-goto="4">Continue</button>
+  </div>
+</section>
+
+<!-- ================= STEP 4 ================= -->
+<section class="panel" data-panel="4">
+  <div class="panel-head">
+    <h2>Gap-fill rules</h2>
+    <p>Rows that Master Data expects but New Data never reported get built from Historical Data.</p>
+  </div>
+
+  <div class="card">
+    <div class="card-head">
+      <h3>Where filled values come from</h3>
+    </div>
+    <div class="row-3">
+      <label class="field">
+        <span>Where to copy from</span>
+        <select id="donor-prefer">
+          <option value="historical">Historical Data first</option>
+          <option value="new">New Data first (current prices)</option>
+        </select>
+      </label>
+      <label class="field">
+        <span>Which row to copy</span>
+        <select id="donor-strategy">
+          <option value="last">The most recent date available</option>
+          <option value="nearest">The date nearest the missing date</option>
+          <option value="previous">The last date before the missing date</option>
+          <option value="first">The earliest date available</option>
+          <option value="random">A random date</option>
+        </select>
+      </label>
+      <label class="field">
+        <span>Date column in Historical Data</span>
+        <select id="hist-date"></select>
+      </label>
+    </div>
+    <div class="msg ok" style="margin-top:12px">
+      Both pools are searched. A gap in one city borrows from the same product in
+      another city or date &mdash; <strong>New Data</strong> for current figures,
+      <strong>Historical Data</strong> for anything New Data never reported.
+      Whichever supplies the numbers, the filled row always keeps
+      <strong>its own date from New Data's reporting range</strong>.
+    </div>
+    <div class="sub">
+      <h4>Matching order</h4>
+      <p class="muted">A missing row is matched on all dimensions first. If Historical Data has nothing, the next looser match is tried.</p>
+      <div id="match-chain"></div>
+    </div>
+    <label class="check big"><input type="checkbox" id="gap-enabled" checked> Fill gaps (uncheck to output only what New Data contains)</label>
+  </div>
+
+  <div class="card">
+    <div class="card-head">
+      <h3>How each measure is filled</h3>
+      <p>By default a filled row copies the historical value as-is. Add a rule to vary it &mdash; for example a price within one rupee of the last one.</p>
+    </div>
+    <div class="preset-row">
+      <span class="muted">Presets:</span>
+      <button class="btn ghost xs" data-preset="asis">Copy as-is</button>
+      <button class="btn ghost xs" data-preset="fromnew">Copy from New Data</button>
+      <button class="btn ghost xs" data-preset="fromhist">Copy from Historical</button>
+      <button class="btn ghost xs" data-preset="jitter1">&plusmn;1 unit (randbetween 99-101)</button>
+      <button class="btn ghost xs" data-preset="jitter5">&plusmn;5%</button>
+      <button class="btn ghost xs" data-preset="master">Use Master Data price</button>
+      <button class="btn ghost xs" data-preset="zero">Set to zero</button>
+    </div>
+    <div class="table-wrap">
+      <table class="grid-table" id="fill-table">
+        <thead><tr><th style="width:26px"></th><th>Column</th><th>Rule</th><th>Formula</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head"><h3>IDs on filled rows</h3></div>
+    <div class="row-3">
+      <label class="field">
+        <span>ID column</span>
+        <select id="id-col"></select>
+      </label>
+      <label class="field">
+        <span>What to put there</span>
+        <select id="id-mode">
+          <option value="blank">Leave blank</option>
+          <option value="unique">Generate new unique IDs</option>
+          <option value="donor">Reuse the historical row's ID</option>
+          <option value="constant">A fixed value</option>
+        </select>
+      </label>
+      <label class="field" id="id-extra-wrap">
+        <span id="id-extra-label">Prefix (optional)</span>
+        <input type="text" id="id-extra" placeholder="e.g. GEN-">
+      </label>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head">
+      <h3>Validation</h3>
+      <p>Breaches are listed on a separate sheet in the output file; nothing is blocked.</p>
+    </div>
+    <div id="validations"></div>
+    <button class="btn ghost sm" id="add-validation">+ Add a rule</button>
+  </div>
+
+  <div class="panel-foot">
+    <button class="btn ghost" data-goto="3">Back</button>
+    <button class="btn primary" data-goto="5">Continue</button>
+  </div>
+</section>
+
+<!-- ================= STEP 5 ================= -->
+<section class="panel" data-panel="5">
+  <div class="panel-head">
+    <h2>Generate the output</h2>
+    <p>Preview first to check the numbers, then download.</p>
+  </div>
+
+  <div class="card">
+    <div class="field" style="margin-bottom:12px">
+      <span>Where should the output go?</span>
+      <div class="radio-row">
+        <label class="radio"><input type="radio" name="out-mode" value="new" checked>
+          <span>New file</span></label>
+        <label class="radio"><input type="radio" name="out-mode" value="append">
+          <span>Append to an existing file</span></label>
+      </div>
+    </div>
+
+    <label class="field inline" id="new-file-opts">
+      <span>File name</span>
+      <input type="text" id="out-name" placeholder="Output_Data.xlsx">
+    </label>
+
+    <div id="append-opts" hidden>
+      <div class="run-actions" style="align-items:flex-end">
+        <label class="field inline">
+          <span>Existing file</span>
+          <select id="append-file"><option value="">Loading…</option></select>
+        </label>
+        <label class="field inline">
+          <span>Sheet to append to</span>
+          <select id="append-sheet"><option value="">(first sheet)</option></select>
+        </label>
+      </div>
+      <label class="radio" style="margin-top:10px">
+        <input type="checkbox" id="skip-existing-dates" checked>
+        <span>Skip dates already in the file (don't re-add a date that's already there)</span>
+      </label>
+      <p class="muted" id="append-note">Rows are added to the bottom, matched to the
+        sheet's own column headers. The rest of the workbook is left as-is.
+        Only <strong>.xlsx / .xlsm</strong> files can be appended to.</p>
+    </div>
+
+    <div class="run-actions" style="margin-top:12px">
+      <button class="btn" id="run-preview">Preview result</button>
+      <button class="btn primary" id="run-generate">Generate &amp; download</button>
+    </div>
+    <div id="run-status"></div>
+  </div>
+
+  <div class="card" id="report-card" hidden>
+    <div class="card-head"><h3>Run summary</h3></div>
+    <div class="stat-strip" id="report-stats"></div>
+    <div id="report-detail"></div>
+  </div>
+
+  <div class="card" id="result-card" hidden>
+    <div class="card-head">
+      <h3>Preview</h3>
+      <div class="tabs" id="result-tabs">
+        <button class="tab active" data-tab="all">All rows</button>
+        <button class="tab" data-tab="filled">Filled rows only</button>
+        <button class="tab" data-tab="issues">Validation issues</button>
+        <button class="tab" data-tab="excluded">Excluded rows</button>
+      </div>
+    </div>
+    <div id="result-body"></div>
+  </div>
+
+  <div class="panel-foot">
+    <button class="btn ghost" data-goto="4">Back</button>
+  </div>
+</section>
+
+</main>
+
+<div id="toast"></div>
+<div class="overlay" id="overlay" hidden><div class="spinner"></div><p id="overlay-text">Working...</p></div>
+
+<script src="/static/app.js"></script>
+</body>
+</html>
