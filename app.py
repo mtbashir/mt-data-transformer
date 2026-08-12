@@ -137,36 +137,6 @@ def build():
     return jsonify({"ok": True, "build": _asset_version()})
 
 
-@app.get("/api/debug/sessions")
-def debug_sessions():
-    """Read-only view of every live session's last-run configuration.
-
-    For diagnosing "why is this column empty" without guessing: the browser's
-    settings are what actually produce the output. Local app, and any stored
-    API key is deliberately excluded.
-    """
-    out = []
-    with LOCK:
-        items = list(STORE.items())
-    for sid, st in items:
-        cfg = st.get("config") or {}
-        out.append({
-            "session": sid[:8],
-            "files": {r: {"name": i.get("name"), "sheet": i.get("sheet"),
-                          "rows": int(len(st["frames"][r])) if r in st["frames"] else None}
-                      for r, i in (st.get("files") or {}).items()},
-            "has_config": bool(cfg),
-            "id_policy": (cfg.get("gapfill") or {}).get("id_policy"),
-            "prefer": (cfg.get("gapfill") or {}).get("prefer"),
-            "fill_rules": [(r.get("column"), r.get("type"))
-                           for r in ((cfg.get("gapfill") or {}).get("rules") or [])],
-            "columns": [{"name": c.get("name"), "source": c.get("source")}
-                        for c in (cfg.get("output_columns") or [])],
-            "derived": cfg.get("derived_columns") or [],
-        })
-    return jsonify({"ok": True, "sessions": out})
-
-
 # ==========================================================================
 # step 1 - upload
 # ==========================================================================
