@@ -10,15 +10,29 @@ so anyone can try it in a browser.
 
 ## Try it online
 
-Deploy your own copy to [Render](https://render.com) — free tier, no card needed:
+Deploy your own copy to a free host. Whichever you pick, the hosted app is
+pre-loaded with the fictional [`sample_data/`](sample_data/), so visitors can
+click **Load all three** and it works with zero setup.
 
-[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/mtbashir/mt-data-transformer)
+**No credit card required:**
 
-1. Click the button (or in Render: **New +  → Blueprint → connect this repo → Apply**).
-2. Render reads [`render.yaml`](render.yaml), installs everything and starts it.
-3. Open the URL it gives you and click **Load all three** — the hosted app is
-   pre-loaded with the fictional [`sample_data/`](sample_data/) so it works with
-   zero setup.
+- **Hugging Face Spaces** — create a **Docker** Space and push this repo to it.
+  It builds the [`Dockerfile`](Dockerfile) automatically. Set the Space's
+  *app port* to `7860`.
+- **PythonAnywhere** — free "Beginner" account. In a Bash console:
+  `git clone https://github.com/mtbashir/mt-data-transformer.git`, make a
+  virtualenv, `pip install -r requirements.txt`, then add a **Manual /
+  Flask** web app whose WSGI file does `import app; application = app.app` and
+  sets `os.environ["DT_DATA_DIR"] = ".../sample_data"`.
+
+**Card required (but free tier):**
+
+- **Render** — **New + → Blueprint → connect this repo → Apply**. It reads
+  [`render.yaml`](render.yaml). Render asks for a card to verify the account
+  even though the free tier isn't charged.
+
+Any Docker host (Koyeb, Fly.io, Railway, …) can run the [`Dockerfile`](Dockerfile)
+directly — it binds to `$PORT` if the host sets one, else `7860`.
 
 The hosted instance is a **shared demo**: it keeps each visitor's uploads in
 memory only and writes nothing permanent. Don't put confidential data into a
