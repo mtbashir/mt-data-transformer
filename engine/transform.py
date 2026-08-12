@@ -62,13 +62,18 @@ def _key_series(df: pd.DataFrame, cols: list[str], case_insensitive: bool = True
 
 
 def _norm_dates(s: pd.Series) -> pd.Series:
-    """Coerce a column to date-only timestamps, tolerating Excel serials."""
+    """Coerce a column to date-only timestamps, tolerating Excel serials.
+
+    Always returns nanosecond resolution. pandas reads native Excel dates as
+    datetime64[us] but computes others as [ns], and it refuses to merge or
+    compare date keys whose units differ - so every date is pinned to [ns] here.
+    """
     if pd.api.types.is_numeric_dtype(s):
         vals = pd.to_numeric(s, errors="coerce")
         valid = vals.dropna()
         if len(valid) and valid.between(20000, 80000).mean() > 0.8:
-            return excel_io.excel_serial_to_datetime(vals).dt.normalize()
-    return pd.to_datetime(s, errors="coerce").dt.normalize()
+            return excel_io.excel_serial_to_datetime(vals).dt.normalize().astype("datetime64[ns]")
+    return pd.to_datetime(s, errors="coerce").dt.normalize().astype("datetime64[ns]")
 
 
 AGGS = {
@@ -180,14 +185,16 @@ def _static_donor(gk: pd.Series, h: pd.DataFrame, hk: pd.Series, strategy: str) 
 def _asof_donor(sub: pd.DataFrame, gk: pd.Series, h: pd.DataFrame, hk: pd.Series,
                 strategy: str) -> pd.Series:
     """Date-aware donor: nearest, or most recent on/before the target date."""
+    # Pin both keys to the same datetime unit - pandas will not merge_asof on
+    # date keys of differing resolution ([us] from Excel vs [ns] computed).
     left = pd.DataFrame({
         "__k": gk.to_numpy(),
-        "__d": pd.to_datetime(sub["__target_date"]).to_numpy(),
+        "__d": pd.to_datetime(sub["__target_date"]).astype("datetime64[ns]").to_numpy(),
         "__orig": sub.index.to_numpy(),
     }).dropna(subset=["__d"]).sort_values("__d")
     right = pd.DataFrame({
         "__k": hk.to_numpy(),
-        "__d": h["__d"].to_numpy(),
+        "__d": pd.to_datetime(h["__d"]).astype("datetime64[ns]").to_numpy(),
         "__hidx": h.index.to_numpy(),
     }).dropna(subset=["__d"]).sort_values("__d")
     if left.empty or right.empty:
@@ -448,7 +455,7 @@ def build_output(new_df: pd.DataFrame, master_df: pd.DataFrame, hist_df: pd.Data
         dates = pd.date_range(grid_cfg["date_from"], grid_cfg["date_to"], freq="D").to_numpy()
     else:
         dates = np.sort(new_df["__date"].dropna().unique())
-    dates = pd.to_datetime(pd.Series(dates)).dt.normalize().unique()
+    dates = pd.to_datetime(pd.Series(dates)).dt.normalize().astype("datetime64[ns]").unique()
     if len(dates) == 0:
         raise ValueError("No reporting dates found. Pick the date column in New Data.")
 
