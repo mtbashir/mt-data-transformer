@@ -13,7 +13,7 @@
     <span class="logo">DT</span>
     <div>
       <h1>Data Transformer <span class="build" id="build">build {{BUILD}}</span></h1>
-      <p>New Data + Master Data + Historical &rarr; gap-filled output</p>
+      <p>New Data + Master Data + Template &rarr; gap-filled output</p>
     </div>
   </div>
   <div class="topbar-actions">
@@ -186,7 +186,7 @@
 <section class="panel" data-panel="4">
   <div class="panel-head">
     <h2>Gap-fill rules</h2>
-    <p>Rows that Master Data expects but New Data never reported get built from Historical Data.</p>
+    <p>Rows that Master Data expects but New Data never reported get built from the Template + Past Data file.</p>
   </div>
 
   <div class="card">
@@ -197,7 +197,7 @@
       <label class="field">
         <span>Where to copy from</span>
         <select id="donor-prefer">
-          <option value="historical">Historical Data first</option>
+          <option value="historical">Template + Past Data first</option>
           <option value="new">New Data first (current prices)</option>
         </select>
       </label>
@@ -212,20 +212,20 @@
         </select>
       </label>
       <label class="field">
-        <span>Date column in Historical Data</span>
+        <span>Date column in Template + Past Data</span>
         <select id="hist-date"></select>
       </label>
     </div>
     <div class="msg ok" style="margin-top:12px">
       Both pools are searched. A gap in one city borrows from the same product in
       another city or date &mdash; <strong>New Data</strong> for current figures,
-      <strong>Historical Data</strong> for anything New Data never reported.
+      <strong>Template + Past Data</strong> for anything New Data never reported.
       Whichever supplies the numbers, the filled row always keeps
       <strong>its own date from New Data's reporting range</strong>.
     </div>
     <div class="sub">
       <h4>Matching order</h4>
-      <p class="muted">A missing row is matched on all dimensions first. If Historical Data has nothing, the next looser match is tried.</p>
+      <p class="muted">A missing row is matched on all dimensions first. If the Template + Past Data file has nothing, the next looser match is tried.</p>
       <div id="match-chain"></div>
     </div>
     <label class="check big"><input type="checkbox" id="gap-enabled" checked> Fill gaps (uncheck to output only what New Data contains)</label>
@@ -234,13 +234,13 @@
   <div class="card">
     <div class="card-head">
       <h3>How each measure is filled</h3>
-      <p>By default a filled row copies the historical value as-is. Add a rule to vary it &mdash; for example a price within one rupee of the last one.</p>
+      <p>By default a filled row copies the past value as-is. Add a rule to vary it &mdash; for example a price within one rupee of the last one.</p>
     </div>
     <div class="preset-row">
       <span class="muted">Presets:</span>
       <button class="btn ghost xs" data-preset="asis">Copy as-is</button>
       <button class="btn ghost xs" data-preset="fromnew">Copy from New Data</button>
-      <button class="btn ghost xs" data-preset="fromhist">Copy from Historical</button>
+      <button class="btn ghost xs" data-preset="fromhist">Copy from Template + Past</button>
       <button class="btn ghost xs" data-preset="jitter1">&plusmn;1 unit (randbetween 99-101)</button>
       <button class="btn ghost xs" data-preset="jitter5">&plusmn;5%</button>
       <button class="btn ghost xs" data-preset="master">Use Master Data price</button>
@@ -266,7 +266,7 @@
         <select id="id-mode">
           <option value="blank">Leave blank</option>
           <option value="unique">Generate new unique IDs</option>
-          <option value="donor">Reuse the historical row's ID</option>
+          <option value="donor">Reuse the matched past row's ID</option>
           <option value="constant">A fixed value</option>
         </select>
       </label>
@@ -335,7 +335,7 @@
       </label>
       <label class="radio" style="margin-top:6px">
         <input type="checkbox" id="append-template-cols" checked>
-        <span>Only append columns that exist in the template file</span>
+        <span>Only append columns that exist in the Template + Past Data file</span>
       </label>
       <p class="muted" id="append-note">Pick a file from the folder, or choose
         <em>“Another file — enter full path…”</em> to append to any workbook on

@@ -1,5 +1,6 @@
 """Data Transformer - a local web app for turning transactional New Data into a
-gap-filled output file shaped by Master Data and a Historical template.
+gap-filled output file shaped by Master Data and a Template + Past Data file
+(the "historical" role in the code).
 
 Run:  python app.py     then open http://127.0.0.1:5000
 """
@@ -864,7 +865,7 @@ def columns_index():
     out = []
     for ns, role, label in (("new", "new", "New Data"),
                             ("master", "master", "Master Data"),
-                            ("donor", "historical", "Historical Data")):
+                            ("donor", "historical", "Template + Past Data")):
         df = st["frames"].get(role)
         if df is None:
             continue

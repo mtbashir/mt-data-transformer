@@ -3,8 +3,10 @@
     Master Data  ->  the universe of valid combinations (which products exist
                      in which cities) and the authoritative labels/prices.
     New Data     ->  the transactions actually collected.
-    Historical   ->  the output template, and the donor pool used to invent
-                     rows for combinations New Data never reported.
+    Template +   ->  a previous output file. Its columns define the output
+    Past Data        layout, and its values are the donor pool used to invent
+                     rows for combinations New Data never reported. Referred to
+                     as the "historical" role throughout the code.
 
 Pipeline stages:
 
@@ -590,7 +592,7 @@ def build_output(new_df: pd.DataFrame, master_df: pd.DataFrame, hist_df: pd.Data
             donor_level.loc[gap_idx] = lvl
             found = int(lvl.notna().sum())
             report["steps"].append(
-                f"Found Historical donors for {found:,} of {len(gap_idx):,} gap rows "
+                f"Found Template + Past donors for {found:,} of {len(gap_idx):,} gap rows "
                 f"(strategy: {strategy}).")
 
         # The New Data pool is searched on the same dimensions. The date is

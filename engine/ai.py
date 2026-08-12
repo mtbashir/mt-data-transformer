@@ -67,7 +67,7 @@ def _client(api_key: str):
 def _columns_block(columns: dict[str, list[str]]) -> str:
     lines = []
     for ns, label in (("new", "New Data"), ("master", "Master Data"),
-                      ("donor", "Historical Data"), ("out", "Output columns so far")):
+                      ("donor", "Template + Past Data"), ("out", "Output columns so far")):
         cols = columns.get(ns) or []
         if cols:
             lines.append(f"{label} (prefix '{ns}.'):")

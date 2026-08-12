@@ -4,7 +4,7 @@
 const ROLES = [
   { key: 'new',        title: 'New Data',        desc: 'The transactions you just collected. Contains gaps.' },
   { key: 'master',     title: 'Master Data',     desc: 'Every valid city/product combination, standard labels and reference prices.' },
-  { key: 'historical', title: 'Historical Data', desc: 'Previously transformed output. Defines the output layout and supplies values for gaps.' },
+  { key: 'historical', title: 'Template + Past Data', desc: 'A previous output file. It does two jobs: its columns define the layout of your output, and its values fill the gaps.' },
 ];
 
 const S = {
@@ -531,7 +531,7 @@ function renderDims() {
     row.append(
       mk('Master Data', S.columns.master || [], d.master, 'master'),
       mk('New Data', S.columns.new || [], d.new, 'new'),
-      mk('Historical', S.columns.historical || [], d.hist, 'hist'));
+      mk('Template + Past Data', S.columns.historical || [], d.hist, 'hist'));
     const del = el('button', 'btn ghost xs', '&times;');
     del.title = 'Remove this dimension';
     del.onclick = () => { dims.splice(i, 1); renderDims(); renderGridStats(); };
@@ -577,7 +577,7 @@ function renderGridStats() {
 const SOURCE_FILES = [
   ['new', 'New Data'],
   ['master', 'Master Data'],
-  ['donor', 'Historical Data'],
+  ['donor', 'Template + Past Data'],
 ];
 
 const OPERATIONS = [
@@ -751,7 +751,7 @@ function renderMapTable() {
     tr.appendChild(tdGrip);
 
     // Every column can be renamed - the output header is the user's to choose,
-    // not something the Historical template dictates.
+    // not something the template dictates.
     const tdName = el('td');
     const nm = el('input'); nm.type = 'text'; nm.value = oc.name;
     nm.title = 'Rename this output column';
@@ -1082,7 +1082,7 @@ function allRefOptions() {
   const opts = [];
   (S.columns.new || []).forEach(c => opts.push([`new.${c}`, `New Data - ${c}`]));
   (S.columns.master || []).forEach(c => opts.push([`master.${c}`, `Master Data - ${c}`]));
-  (S.columns.historical || []).forEach(c => opts.push([`donor.${c}`, `Historical - ${c}`]));
+  (S.columns.historical || []).forEach(c => opts.push([`donor.${c}`, `Template + Past - ${c}`]));
   opts.push(['grid.DATE', 'Grid - DATE']);
   (S.config?.output_columns || []).forEach(c => opts.push([`out.${c.name}`, `Output - ${c.name}`]));
   return opts;
@@ -1176,7 +1176,7 @@ function renderChain() {
 
 const FILL_RULES = [
   ['default', 'Copy from the preferred pool (default)'],
-  ['donor', 'Copy from Historical Data'],
+  ['donor', 'Copy from Template + Past Data'],
   ['new_donor', 'Copy from New Data'],
   ['master', 'Take from Master Data'],
   ['formula', 'Calculate with a formula'],
@@ -1242,7 +1242,7 @@ function renderFillTable() {
     const paint = () => {
       tdVal.innerHTML = '';
       const t = sel.value;
-      if (t === 'default') { tdVal.appendChild(el('span', 'muted', 'historical value, else Master Data')); return; }
+      if (t === 'default') { tdVal.appendChild(el('span', 'muted', 'template + past value, else Master Data')); return; }
       if (t === 'blank') { tdVal.appendChild(el('span', 'muted', 'empty')); return; }
       if (t === 'formula') {
         const ta = el('textarea');
@@ -1639,7 +1639,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   $('#only-unmapped').onchange = () => renderMapTable();
   $('#refresh-preview').onclick = () => refreshColumnPreview();
   $('#reset-order').onclick = () => {
-    // Historical Data defines the natural layout; added columns keep their
+    // The template file defines the natural layout; added columns keep their
     // relative order and go to the end.
     const tpl = S.templateColumns || [];
     const rank = n => { const i = tpl.indexOf(n); return i === -1 ? tpl.length : i; };
@@ -1648,7 +1648,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       .sort((a, b) => rank(a.c.name) - rank(b.c.name) || a.i - b.i)
       .map(x => x.c);
     refreshRefs(); renderMapTable(); markPreviewStale();
-    toast('Order reset to the Historical Data layout', 'ok');
+    toast('Order reset to the template layout', 'ok');
   };
   $('#add-output-col').onclick = () => {
     // The app's own modal rather than window.prompt - native dialogs are
