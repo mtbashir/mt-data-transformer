@@ -326,13 +326,21 @@
           <select id="append-sheet"><option value="">(first sheet)</option></select>
         </label>
       </div>
+      <label class="field inline" id="append-path-row" hidden style="margin-top:8px">
+        <span>Full file path</span>
+        <input type="text" id="append-path" style="min-width:340px"
+               placeholder="e.g. I:\Shared drives\...\My Database.xlsx">
+        <button class="btn" id="append-path-load" type="button">Load</button>
+      </label>
       <label class="radio" style="margin-top:10px">
         <input type="checkbox" id="skip-existing-dates" checked>
         <span>Skip dates already in the file (don't re-add a date that's already there)</span>
       </label>
-      <p class="muted" id="append-note">Rows are added to the bottom, matched to the
-        sheet's own column headers. The rest of the workbook is left as-is.
-        Only <strong>.xlsx / .xlsm</strong> files can be appended to.</p>
+      <p class="muted" id="append-note">Pick a file from the folder, or choose
+        <em>“Another file — enter full path…”</em> to append to any workbook on
+        your machine. Rows are added to the bottom, matched to the sheet's own
+        column headers; the rest of the workbook is left as-is. Only
+        <strong>.xlsx / .xlsm</strong> files can be appended to.</p>
     </div>
 
     <div class="run-actions" style="margin-top:12px">

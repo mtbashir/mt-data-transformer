@@ -1409,8 +1409,8 @@ async function runGenerate() {
   const mode = outputMode();
   const payload = { config: S.config, output_mode: mode };
   if (mode === 'append') {
-    const file = $('#append-file').value;
-    if (!file) { toast('Choose the file to append to', 'err'); return; }
+    const file = appendTarget();
+    if (!file) { toast('Choose or enter the file to append to', 'err'); return; }
     payload.append_to = file;
     payload.append_sheet = $('#append-sheet').value || null;
     payload.skip_existing_dates = $('#skip-existing-dates').checked;
@@ -1452,6 +1452,14 @@ async function runGenerate() {
   } finally { busy(false); }
 }
 
+// The file to append to: a folder file picked from the list, or - when
+// "Another file…" is chosen - whatever full path was typed in.
+function appendTarget() {
+  const sel = $('#append-file').value;
+  if (sel === '__path__') return ($('#append-path').value || '').trim();
+  return sel;
+}
+
 // Step 5 output-destination toggle: new file vs. append to an existing one.
 function setupOutputMode() {
   $$('input[name="out-mode"]').forEach(r => r.onchange = () => {
@@ -1460,7 +1468,17 @@ function setupOutputMode() {
     $('#new-file-opts').hidden = append;
     if (append) populateAppendFiles();
   });
-  $('#append-file').onchange = () => populateAppendSheets();
+  $('#append-file').onchange = () => {
+    const custom = $('#append-file').value === '__path__';
+    $('#append-path-row').hidden = !custom;
+    $('#append-sheet').innerHTML = `<option value="">(first sheet)</option>`;
+    if (custom) $('#append-path').focus();
+    else populateAppendSheets();
+  };
+  $('#append-path-load').onclick = () => populateAppendSheets();
+  $('#append-path').addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); populateAppendSheets(); }
+  });
 }
 
 async function populateAppendFiles() {
@@ -1471,16 +1489,18 @@ async function populateAppendFiles() {
     const opts = (d.files || [])
       .filter(f => /\.xlsx?$|\.xlsm$/i.test(f.name))
       .map(f => `<option value="${esc(f.name)}">${esc(f.name)} (${f.size_kb} KB)</option>`);
-    sel.innerHTML = `<option value="">Choose a file…</option>` + opts.join('');
+    sel.innerHTML = `<option value="">Choose a file…</option>` + opts.join('') +
+      `<option value="__path__">Another file — enter full path…</option>`;
     sel.dataset.loaded = '1';
   } catch (e) {
-    sel.innerHTML = `<option value="">Could not list files</option>`;
+    sel.innerHTML = `<option value="">Could not list files</option>` +
+      `<option value="__path__">Another file — enter full path…</option>`;
     toast(e.message, 'err');
   }
 }
 
 async function populateAppendSheets() {
-  const file = $('#append-file').value;
+  const file = appendTarget();
   const sel = $('#append-sheet');
   const note = $('#append-note');
   sel.innerHTML = `<option value="">(first sheet)</option>`;

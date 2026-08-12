@@ -240,11 +240,29 @@ def _guess_role(name: str) -> str | None:
     return None
 
 
+# Set DT_LOCKED on shared/hosted instances to forbid touching files outside the
+# app's own data folder. Left unset for the normal local desktop use, where
+# appending to any workbook on your own machine is the whole point.
+LOCKED = bool(os.environ.get("DT_LOCKED"))
+
+
+def _resolve_target(name: str) -> str:
+    """Absolute path to an append target the user named.
+
+    A bare name resolves inside DATA_DIR. A full path is honoured as-is on a
+    local install; when DT_LOCKED is set it is pulled back to its basename in
+    DATA_DIR, so a hosted instance can never read or write elsewhere.
+    """
+    if os.path.isabs(name) and not LOCKED:
+        return os.path.realpath(name)
+    return os.path.realpath(os.path.join(DATA_DIR, os.path.basename(name)))
+
+
 @app.get("/api/target-sheets")
 def target_sheets():
     """Sheet names of a candidate append target, so step 5 can offer them."""
     name = request.args.get("name") or ""
-    path = name if os.path.isabs(name) else os.path.join(DATA_DIR, _safe_name(name))
+    path = _resolve_target(name)
     if not os.path.isfile(path):
         return _err(f"Cannot find '{name}'.")
     ext = excel_io.ext_of(path)
@@ -993,9 +1011,9 @@ def generate():
         target = data.get("append_to")
         if not target:
             return _err("Choose the existing file to append to.")
-        tgt_path = target if os.path.isabs(target) else os.path.join(DATA_DIR, _safe_name(target))
+        tgt_path = _resolve_target(target)
         if not os.path.isfile(tgt_path):
-            return _err(f"Cannot find '{target}' in the folder.")
+            return _err(f"Cannot find '{target}'.")
         skip_dates = data.get("skip_existing_dates", True)
         try:
             info = excel_io.append_to_excel(

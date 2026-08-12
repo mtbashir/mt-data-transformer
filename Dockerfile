@@ -13,6 +13,8 @@ COPY . .
 
 # Serve the bundled fictional demo data as the quick-load files.
 ENV DT_DATA_DIR=./sample_data
+# Shared instance: confine all file access to the data folder (no host paths).
+ENV DT_LOCKED=1
 # One worker on purpose: per-visitor uploads live in an in-memory store.
 ENV WEB_CONCURRENCY=1
 
