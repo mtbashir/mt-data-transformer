@@ -1,3 +1,13 @@
+---
+title: MT Data Transformer
+emoji: 📊
+colorFrom: indigo
+colorTo: blue
+sdk: docker
+app_port: 7860
+pinned: false
+---
+
 # Data Transformer
 
 A local web app that turns a transactional **New Data** file into a complete,
