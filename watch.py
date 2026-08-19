@@ -32,7 +32,11 @@ def log(msg):
 
 
 def load_cfg(path):
-    path = path or os.path.join(BASE_DIR, "pipeline_config.json")
+    # DT_PIPELINE_CONFIG lets the agent point at a config living beside the data
+    # it watches, without hard-coding that path into a file kept in version
+    # control. Matches run_pipeline.py.
+    path = (path or os.environ.get("DT_PIPELINE_CONFIG")
+            or os.path.join(BASE_DIR, "pipeline_config.json"))
     with open(path, encoding="utf-8") as fh:
         return json.load(fh), path
 

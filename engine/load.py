@@ -142,8 +142,14 @@ def _write_workbook(sheets: dict[str, pd.DataFrame], out_path: str) -> None:
                 cell.alignment = Alignment(horizontal="center", vertical="center")
             ws.freeze_panes = "A2"
             for i, col in enumerate(df.columns, start=1):
-                sample = df[col].head(400).astype(str)
-                width = max(len(str(col)), int(sample.str.len().max()) if len(sample) else 0)
+                # A column that is entirely empty leaves .max() as NA under
+                # pandas' string dtype, and int(NA) raises - which aborted the
+                # whole load after the backup was taken. Measure NA-safely.
+                lengths = df[col].head(400).astype("object").map(
+                    lambda v: 0 if v is None or (isinstance(v, float) and np.isnan(v))
+                    or v is pd.NA else len(str(v)))
+                longest = int(lengths.max()) if len(lengths) and lengths.notna().any() else 0
+                width = max(len(str(col)), longest)
                 ws.column_dimensions[get_column_letter(i)].width = min(max(width + 3, 10), 42)
             if len(df):
                 ws.auto_filter.ref = ws.dimensions

@@ -57,3 +57,6 @@ logs/
 .idea/
 .DS_Store
 Thumbs.db
+
+# Local machine pointer to the agent config (private absolute path).
+agent_config.txt
