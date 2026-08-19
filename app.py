@@ -166,10 +166,9 @@ def upload():
         return _err(f"Could not open the workbook: {e}")
 
     sheet = sheets[0] if sheets else None
-    # For master files the interesting sheet is often not the first one.
-    if role == "master" and len(sheets) > 1:
-        best = max(sheets, key=lambda s: _sheet_score(dest, s))
-        sheet = best
+    # For master and template files the interesting sheet is often not the first.
+    if role in ("master", "historical") and len(sheets) > 1:
+        sheet = _best_sheet(dest, sheets)
 
     return _load_sheet(role, dest, f.filename, sheet, None)
 
@@ -181,6 +180,26 @@ def _sheet_score(path: str, sheet: str) -> int:
         return int(raw.notna().sum().sum())
     except Exception:
         return 0
+
+
+# Sheets this app writes next to the data. A previous output workbook is the
+# obvious thing to hand back as the template, so these must never be taken for
+# the data itself - 'Quarantined Rows' is wider than 'Output Data' and would
+# otherwise win a "most cells wins" contest.
+_OUTPUT_SHEET = "output data"
+_AUX_SHEETS = {"quarantined rows", "validation issues", "excluded new rows",
+               "master additions", "master data additions", "run summary"}
+
+
+def _best_sheet(path: str, sheets: list[str]) -> str | None:
+    """The sheet holding the actual data in a multi-sheet workbook."""
+    if not sheets:
+        return None
+    exact = [s for s in sheets if str(s).strip().casefold() == _OUTPUT_SHEET]
+    if exact:
+        return exact[0]
+    real = [s for s in sheets if str(s).strip().casefold() not in _AUX_SHEETS]
+    return max(real or sheets, key=lambda s: _sheet_score(path, s))
 
 
 def _load_sheet(role: str, path: str, original: str, sheet, header_row):
@@ -299,8 +318,8 @@ def load_local():
     except Exception as e:
         return _err(f"Could not open the workbook: {e}")
     sheet = sheets[0] if sheets else None
-    if role == "master" and len(sheets) > 1:
-        sheet = max(sheets, key=lambda s: _sheet_score(dest, s))
+    if role in ("master", "historical") and len(sheets) > 1:
+        sheet = _best_sheet(dest, sheets)
     return _load_sheet(role, dest, os.path.basename(path), sheet, None)
 
 

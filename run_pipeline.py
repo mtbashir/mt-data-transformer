@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import argparse
 import datetime as _dt
+import glob
 import json
 import os
 import sys
@@ -115,6 +116,15 @@ def _sheet_score(path: str, sheet: str) -> int:
         return 0
 
 
+# Sheets this app writes alongside the data. A previous output workbook is the
+# most natural thing to hand back as the template, so these must never be
+# mistaken for the data itself - 'Quarantined Rows' is wider than 'Output Data'
+# and would otherwise win a "most cells wins" contest.
+OUTPUT_SHEET = "output data"
+AUX_SHEETS = {"quarantined rows", "validation issues", "excluded new rows",
+              "master additions", "master data additions", "run summary"}
+
+
 def resolve_sheet(role: str, path: str, cfg: dict) -> str | None:
     """Pick the sheet to read for a role, mirroring the web app."""
     override = (cfg.get("sheets") or {}).get(role) or {}
@@ -123,7 +133,12 @@ def resolve_sheet(role: str, path: str, cfg: dict) -> str | None:
     sheets = excel_io.list_sheets(path)
     sheet = sheets[0] if sheets else None
     if role in ("master", "historical") and len(sheets) > 1:
-        sheet = max(sheets, key=lambda s: _sheet_score(path, s))
+        # A workbook this app produced: take its data sheet by name.
+        exact = [s for s in sheets if str(s).strip().casefold() == OUTPUT_SHEET]
+        if exact:
+            return exact[0]
+        real = [s for s in sheets if str(s).strip().casefold() not in AUX_SHEETS]
+        sheet = max(real or sheets, key=lambda s: _sheet_score(path, s))
     return sheet
 
 
@@ -223,9 +238,24 @@ def main(argv=None) -> int:
         prof_cfg = cfg.get("profile", "mapping_profile.json")
         profile_path = prof_cfg if os.path.isabs(prof_cfg) else os.path.join(BASE_DIR, prof_cfg)
         if not os.path.isfile(profile_path):
-            raise FileNotFoundError(
-                f"No mapping profile at {profile_path}. Save one from the web app "
-                "('Save profile') and point the config's 'profile' at it.")
+            # The web app's "Save profile" lets you name the file anything, so an
+            # exact-name mismatch is the most common reason this agent fails.
+            # Fall back to the folder's own profile when there is no ambiguity.
+            found = sorted(glob.glob(os.path.join(BASE_DIR, "mapping_profile*.json")))
+            if len(found) == 1:
+                profile_path = found[0]
+                log(f"Config named '{os.path.basename(prof_cfg)}', which is missing; "
+                    f"using the only profile present: {os.path.basename(profile_path)}")
+            elif len(found) > 1:
+                names = ", ".join(os.path.basename(f) for f in found)
+                raise FileNotFoundError(
+                    f"No mapping profile at {profile_path}, and several candidates "
+                    f"exist ({names}). Set 'profile' in the config to the one to use.")
+            else:
+                raise FileNotFoundError(
+                    f"No mapping profile at {profile_path}, and no mapping_profile*.json "
+                    f"in {BASE_DIR}. Save one from the web app ('Save profile') and "
+                    "point the config's 'profile' at it.")
         with open(profile_path, encoding="utf-8") as fh:
             profile = json.load(fh)
         log(f"Profile: {os.path.basename(profile_path)}")
